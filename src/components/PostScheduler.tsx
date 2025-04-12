@@ -82,6 +82,7 @@ export const PostScheduler: React.FC<PostSchedulerProps> = ({
                 selected={date}
                 onSelect={setDate}
                 initialFocus
+                className="p-3 pointer-events-auto"
               />
             </PopoverContent>
           </Popover>
