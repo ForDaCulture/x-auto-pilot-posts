@@ -1,37 +1,25 @@
 
-import { useState } from "react";
+import { useContext } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CalendarClock, Sparkles, Trash2 } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
+import { PostContext } from "@/context/PostContext";
 
 export const ScheduledPosts = () => {
   const { toast } = useToast();
-  const [scheduledPosts, setScheduledPosts] = useState([
-    {
-      id: "1",
-      text: "The Great Pyramid of Giza was the tallest man-made structure for over 3,800 years until the completion of Lincoln Cathedral in 1311 AD.",
-      time: "April 15, 2025 at 10:30 AM",
-      hasImage: true,
-    },
-    {
-      id: "2",
-      text: "In 1666, the Great Fire of London destroyed over 13,000 homes but officially killed only six people.",
-      time: "April 18, 2025 at 02:15 PM",
-      hasImage: true,
-    },
-  ]);
+  const { state, dispatch } = useContext(PostContext);
+  const scheduledPosts = state.scheduledPosts;
 
   const handleDelete = (id: string) => {
-    setScheduledPosts(scheduledPosts.filter(post => post.id !== id));
+    dispatch({ type: "REMOVE_SCHEDULED_POST", payload: id });
     toast({
       title: "Post Removed",
       description: "The scheduled post has been removed.",
     });
   };
 
-  if (scheduledPosts.length === 0) {
+    if (scheduledPosts.length === 0) {
     return (
       <div className="text-center text-gray-500 py-8">
         <CalendarClock className="mx-auto h-10 w-10 mb-2 opacity-50" />

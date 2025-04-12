@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useContext } from "react";
 import { Layout } from "@/components/Layout";
 import { NicheSelector } from "@/components/NicheSelector";
 import { PostGenerator } from "@/components/PostGenerator";
@@ -8,62 +8,100 @@ import { PostScheduler } from "@/components/PostScheduler";
 import { ScheduledPosts } from "@/components/ScheduledPosts";
 import { useToast } from "@/components/ui/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PostContext } from "@/context/PostContext";
 
 const Index = () => {
-  const [selectedNiche, setSelectedNiche] = useState("history");
-  const [generatedContent, setGeneratedContent] = useState<{
-    text: string;
-    imageUrl: string | null;
-  }>({ text: "", imageUrl: null });
-  const [isGenerating, setIsGenerating] = useState(false);
+  const { state, dispatch } = useContext(PostContext);
+  const { selectedNiche, generatedContent, isGenerating } = state;
   const { toast } = useToast();
-  
-  // This function would normally connect to your backend
+
+  // Helper function for retry logic with exponential backoff
+  const withRetry = async <T, >(
+    fn: () => Promise<T>,
+    maxRetries: number = 3,
+    delay: number = 1000
+  ): Promise<T> => {
+    let attempts = 0;
+    while (attempts < maxRetries) {
+      try {
+        return await fn();
+      } catch (error) {
+        attempts++;
+        console.error(`Attempt ${attempts} failed:`, error);
+        if (attempts === maxRetries) throw error;
+        await new Promise((resolve) => setTimeout(resolve, delay * 2 ** attempts));
+      }
+    }
+    throw new Error("Max retries exceeded"); // This line should never be reached, but it satisfies TypeScript
+  };
+
+  // This function connects to the backend API for post generation
   const generatePost = async () => {
-    setIsGenerating(true);
-    
+    dispatch({ type: "SET_GENERATING", payload: true });
+
     try {
-      // Simulating API call delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Mock data based on selected niche
-      const historyFacts = [
-        "On this day in 1969, Apollo 11 landed on the moon, marking mankind's first steps on another celestial body.",
-        "Did you know? The Great Wall of China took over 2,000 years to build, with construction starting in the 7th century BC.",
-        "In 1215, King John of England signed the Magna Carta, laying the foundation for constitutional governments worldwide.",
-        "The printing press, invented by Johannes Gutenberg around 1440, revolutionized how knowledge was spread across Europe.",
-        "Ancient Egyptians were using toothpaste as early as 5000 BC, made from crushed eggshells and ox hooves.",
-      ];
-      
-      const imageUrls = [
-        "https://images.unsplash.com/photo-1568219656418-15c329312bf1?q=80&w=2070&auto=format&fit=crop",
-        "https://images.unsplash.com/photo-1547891654-e66ed7ebb968?q=80&w=2070&auto=format&fit=crop",
-        "https://images.unsplash.com/photo-1563781677-a6b9bd7857e3?q=80&w=2070&auto=format&fit=crop",
-        "https://images.unsplash.com/photo-1461360228754-6e81c478b882?q=80&w=2074&auto=format&fit=crop",
-        "https://images.unsplash.com/photo-1603665330306-dd1a67e0cc4e?q=80&w=2070&auto=format&fit=crop",
-      ];
-      
-      // Select random content based on niche
-      const randomIndex = Math.floor(Math.random() * historyFacts.length);
-      
-      setGeneratedContent({
-        text: historyFacts[randomIndex],
-        imageUrl: imageUrls[randomIndex],
+      // Use withRetry to add retry logic to the API call
+      const response = await withRetry(async () => {
+        const res = await fetch("/api/generate-post", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ niche: selectedNiche }),
+        });
+
+        if (!res.ok) {
+          // Provide more specific error messages based on status code
+          if (res.status === 429) {
+            throw new Error("Too many requests. Please try again later.");
+          } else {
+            throw new Error(`Failed to generate post: ${res.status} - ${res.statusText}`);
+          }
+        }
+        return res;
       });
-      
-      toast({
-        title: "Content Generated",
-        description: "Your historical post has been generated successfully.",
-      });
-    } catch (error) {
+
+      const data = await response.json();
+      let content = { ...data, sentiment: null };
+
+      toast({ title: "Content Generated", description: "Post generated successfully." });
+    } catch (error: any) {
+      // Handle errors with more specific messages
+      const errorMessage =
+        error.message === "Max retries exceeded"
+          ? "Failed to generate post after multiple attempts. Please try again later."
+          : error.message || "An unexpected error occurred during post generation.";
+
       console.error("Error generating post:", error);
-      toast({
-        title: "Generation Failed",
-        description: "There was an error generating your post. Please try again.",
-        variant: "destructive",
-      });
+      toast({ title: "Generation Failed", description: errorMessage, variant: "destructive" });
+    }
+
+    if (generatedContent.text) {
+      try {
+        // Call the sentiment analysis endpoint
+        const sentimentResponse = await fetch("/api/sentiment", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ text: generatedContent.text }),
+        });
+
+        if (sentimentResponse.ok) {
+          const sentimentData = await sentimentResponse.json();
+          content.sentiment = sentimentData.sentiment;
+        } else {
+          console.error("Sentiment analysis failed:", sentimentResponse.status, sentimentResponse.statusText);
+          // Handle sentiment analysis error - set sentiment to null
+          content.sentiment = null;
+        }
+      } catch (error) {
+        console.error("Error during sentiment analysis:", error);
+        // Handle sentiment analysis error - set sentiment to null
+        content.sentiment = null;
+      }
     } finally {
-      setIsGenerating(false);
+      dispatch({ type: "SET_GENERATING", payload: false });
     }
   };
   
@@ -104,13 +142,13 @@ const Index = () => {
               
               <NicheSelector 
                 selectedNiche={selectedNiche} 
-                onSelectNiche={setSelectedNiche} 
+                onSelectNiche={(niche) => dispatch({ type: "SET_NICHE", payload: niche })}
               />
               
               <PostGenerator
-                selectedNiche={selectedNiche}
                 onGenerate={generatePost}
-                isGenerating={isGenerating}
+                isGenerating={state.isGenerating}
+                selectedNiche={state.selectedNiche}
               />
             </div>
             
@@ -120,14 +158,14 @@ const Index = () => {
                 <PostPreview 
                   text={generatedContent.text} 
                   imageUrl={generatedContent.imageUrl} 
+                  sentiment={generatedContent.sentiment}
                 />
                 
                 <PostScheduler 
                   onSchedule={schedulePost} 
                   disabled={!generatedContent.text} 
-                  content={generatedContent}
                 />
-              </div>
+              </div>            
             )}
           </div>
           

@@ -1,12 +1,12 @@
 
-import { useState } from "react";
+import { useState, useContext } from "react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CalendarIcon, Clock } from "lucide-react";
-import { format } from "date-fns";
+import { format, toDate } from "date-fns";
 import { cn } from "@/lib/utils";
 
 interface PostSchedulerProps {
@@ -18,11 +18,8 @@ interface PostSchedulerProps {
   };
 }
 
-export const PostScheduler: React.FC<PostSchedulerProps> = ({ 
-  onSchedule, 
-  disabled,
-  content 
-}) => {
+export const PostScheduler: React.FC<PostSchedulerProps> = ({ disabled, content }) => {
+  const { dispatch } = useContext(PostContext);
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [hour, setHour] = useState("12");
   const [minute, setMinute] = useState("00");
@@ -32,18 +29,22 @@ export const PostScheduler: React.FC<PostSchedulerProps> = ({
   const handleSchedule = async () => {
     if (!date) return;
     
+    const postDate = toDate(date);
+    postDate.setHours(parseInt(hour));
+    postDate.setMinutes(parseInt(minute));
+    postDate.setSeconds(0);
+
     setIsScheduling(true);
     
     // Format the date and time for display
-    const formattedDate = format(date, "PPP");
+    const formattedDate = format(postDate, "PPP");
     const formattedTime = `${hour}:${minute} ${meridiem}`;
     const scheduleTime = `${formattedDate} at ${formattedTime}`;
-    
-    const success = await onSchedule(scheduleTime);
-    
-    setIsScheduling(false);
-    
-    if (success) {
+
+    dispatch({
+      type: "ADD_SCHEDULED_POST",
+      payload: { id: crypto.randomUUID(), text: content.text, time: scheduleTime, hasImage: !!content.imageUrl },
+    });
       // Reset the form
       setDate(new Date());
       setHour("12");
@@ -51,6 +52,8 @@ export const PostScheduler: React.FC<PostSchedulerProps> = ({
       setMeridiem("PM");
     }
   };
+
+  setIsScheduling(false);
   
   const hours = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
   const minutes = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));

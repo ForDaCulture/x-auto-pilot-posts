@@ -1,5 +1,5 @@
 
-import { Label } from "@/components/ui/label";
+import { Label } from "@/components/ui/label";import { useState, useEffect } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface NicheSelectorProps {
@@ -8,26 +8,58 @@ interface NicheSelectorProps {
 }
 
 export const NicheSelector: React.FC<NicheSelectorProps> = ({ selectedNiche, onSelectNiche }) => {
+  const [niches, setNiches] = useState<{ id: string; name: string; }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch niches from API
+  useEffect(() => {
+    const fetchNiches = async () => {
+      try {
+        const response = await fetch("/api/niches");
+        if (!response.ok) {
+          throw new Error("Failed to fetch niches");
+        }
+        const data = await response.json();
+        setNiches(data);
+      } catch (error: any) {
+        setError(error.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchNiches();
+  }, []);
+
   return (
     <div className="mb-6">
       <Label htmlFor="niche-select" className="block mb-2">
         Select Niche
       </Label>
-      <Select value={selectedNiche} onValueChange={onSelectNiche}>
-        <SelectTrigger id="niche-select" className="w-full">
-          <SelectValue placeholder="Select a niche" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="history">History</SelectItem>
-          <SelectItem value="fitness" disabled>Fitness (Coming Soon)</SelectItem>
-          <SelectItem value="science" disabled>Science (Coming Soon)</SelectItem>
-          <SelectItem value="art" disabled>Art (Coming Soon)</SelectItem>
-          <SelectItem value="philosophy" disabled>Philosophy (Coming Soon)</SelectItem>
-        </SelectContent>
-      </Select>
-      <p className="text-sm text-gray-500 mt-2">
-        Currently focused on historical content, with more niches coming soon!
-      </p>
+      {loading ? (
+        <Select disabled>
+          <SelectTrigger id="niche-select" className="w-full">
+            <SelectValue placeholder="Loading niches..." />
+          </SelectTrigger>
+        </Select>
+      ) : error ? (
+        <div className="text-red-500">Error: {error}</div>
+      ) : (
+        <Select value={selectedNiche} onValueChange={onSelectNiche}>
+          <SelectTrigger id="niche-select" className="w-full">
+            <SelectValue placeholder="Select a niche" />
+          </SelectTrigger>
+          <SelectContent>
+            {niches.map((niche) => (
+              <SelectItem key={niche.id} value={niche.id}>
+                {niche.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+      {/* This component now fetches niches from the API */}
     </div>
   );
 };
