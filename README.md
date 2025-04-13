@@ -1,73 +1,123 @@
-# Welcome to your Lovable project
+# X Automated Content Planner
 
 ## Project info
 
 **URL**: https://lovable.dev/projects/261081d0-491b-45ab-812f-bc11c927acfb
 
-## How can I edit this code?
+"""# 🧠 Auto X Poster — Niche Content Generator & Scheduler
 
-There are several ways of editing your application.
+This project is an AI-powered social media automation tool that:
+- Generates niche content (starting with "History") using OpenAI
+- Creates branded image posts with DynaPictures (or mock image fallback)
+- Schedules and posts to X (formerly Twitter) automatically
+- Includes a calendar UI, sentiment analysis, and extensible niche support
 
-**Use Lovable**
+---
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/261081d0-491b-45ab-812f-bc11c927acfb) and start prompting.
+## 📦 Features
 
-Changes made via Lovable will be committed automatically to this repo.
+- ✅ Real-time post generation (OpenAI)
+- ✅ Sentiment analysis (Positive/Neutral/Negative tags)
+- ✅ Dynamic niche selection (fetched from backend)
+- ✅ Clean, responsive UI with Tailwind CSS
+- ✅ Scheduler with cron expression + calendar picker
+- ✅ Post preview and toast-based notifications
 
-**Use your preferred IDE**
+---
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## 🛠 Tech Stack
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+| Area         | Stack                              |
+|--------------|------------------------------------|
+| Frontend     | React + TypeScript + Tailwind CSS  |
+| Backend      | Node.js + Express (API endpoints)  |
+| AI/ML        | OpenAI API for text + sentiment    |
+| Image Gen    | DynaPictures API (or fallback)     |
+| Scheduler    | node-cron + Python script (tweepy) |
+| Auth (Future)| Supabase (optional)                |
 
-Follow these steps:
+---
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+## 🚀 Setup Instructions
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### 1. Clone the Repository
 
-# Step 3: Install the necessary dependencies.
-npm i
+```bash
+git clone https://github.com/YOUR_USERNAME/auto-x-poster.git
+cd auto-x-poster
+2. Install Dependencies
+Backend
+bash
+Always show details
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+Copy
+cd backend
+npm install
+Frontend
+bash
+Always show details
+
+Copy
+cd frontend
+npm install
+3. Configure Environment Variables
+Create .env files in both /backend and /frontend.
+
+Backend .env:
+env
+Always show details
+
+Copy
+OPENAI_API_KEY=your-openai-api-key
+DYNAPICTURES_API_KEY=your-dynapictures-key
+TEMPLATE_ID=your-dynapictures-template-id
+X_CONSUMER_KEY=your-x-api-consumer-key
+X_CONSUMER_SECRET=your-x-api-consumer-secret
+X_ACCESS_TOKEN=your-x-access-token
+X_ACCESS_TOKEN_SECRET=your-x-access-token-secret
+4. Run the Backend Server
+bash
+Always show details
+
+Copy
+cd backend
+node server.js
+5. Run the Frontend (React App)
+bash
+Always show details
+
+Copy
+cd frontend
 npm run dev
-```
+Visit the app at http://localhost:5173
 
-**Edit a file directly in GitHub**
+6. Optional: Python Script for Posting to X
+Install dependencies:
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+bash
+Always show details
 
-**Use GitHub Codespaces**
+Copy
+pip install tweepy requests
+Run it manually or via cron:
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+bash
+Always show details
 
-## What technologies are used for this project?
+Copy
+python post_to_x.py "Your tweet text here" "image_url_here"
+📌 Roadmap
+ Sentiment Analysis
 
-This project is built with:
+ Dynamic Niche Support
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+ Post Analytics Dashboard
 
-## How can I deploy this project?
+ Hashtag Recommender
 
-Simply open [Lovable](https://lovable.dev/projects/261081d0-491b-45ab-812f-bc11c927acfb) and click on Share -> Publish.
+ CTA Enhancer
 
-## Can I connect a custom domain to my Lovable project?
+ Role-Based Access (via Supabase)
 
-Yes it is!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+🤝 Contributing
+Pull requests are welcome! Please open an issue first to discuss what you’d like to change.
