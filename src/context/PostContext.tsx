@@ -9,6 +9,7 @@ interface PostState {
     hasImage: boolean;
   }[];
   generatedContent: {
+    originalText: string;
     text: string;
     imageUrl: string | null;
     sentiment: string | null;
@@ -19,23 +20,33 @@ interface PostState {
 const initialState: PostState = {
   selectedNiche: 'history',
   scheduledPosts: [],
-  generatedContent: { text: '', imageUrl: null, sentiment: null },
+  generatedContent: { originalText: '', text: '', imageUrl: null, sentiment: null },
   isGenerating: false,
 };
 
 type PostAction =
   | { type: 'SET_NICHE'; payload: string }
-  | { type: 'SET_CONTENT'; payload: { text: string; imageUrl: string | null; sentiment: string | null } }
+  | { type: 'SET_CONTENT'; payload: { originalText: string; text: string; imageUrl: string | null; sentiment: string | null } }
+  | { type: 'UPDATE_TEXT'; payload: string }
   | { type: 'SET_GENERATING'; payload: boolean }
   | { type: 'ADD_SCHEDULED_POST'; payload: { id: string; text: string; time: string; hasImage: boolean } }
   | { type: 'REMOVE_SCHEDULED_POST'; payload: string };
+
+interface SetContentPayload {
+  originalText: string;
+  text: string;
+  imageUrl: string | null;
+  sentiment: string | null;
+}
 
 const postReducer = (state: PostState, action: PostAction): PostState => {
   switch (action.type) {
     case 'SET_NICHE':
       return { ...state, selectedNiche: action.payload };
     case 'SET_CONTENT':
-      return { ...state, generatedContent: action.payload };
+      return { ...state, generatedContent: { ...state.generatedContent, ...action.payload } };
+    case 'UPDATE_TEXT':
+      return { ...state, generatedContent: { ...state.generatedContent, text: action.payload } };
     case 'SET_GENERATING':
       return { ...state, isGenerating: action.payload };    
     case 'ADD_SCHEDULED_POST':
@@ -52,15 +63,16 @@ const postReducer = (state: PostState, action: PostAction): PostState => {
 
 interface PostContextType {
   state: PostState;
-  scheduledPosts: { id: string; text: string; time: string; hasImage: boolean; }[];
+  generatedContent: PostState['generatedContent'];
   dispatch: Dispatch<PostAction>;
 }
 
 const PostContext = createContext<PostContextType | undefined>(undefined);
 
 const PostContextProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [state, dispatch] = useReducer(postReducer, initialState);
-    const scheduledPosts = state.scheduledPosts;
+  const [state, dispatch] = useReducer<React.Reducer<PostState, PostAction>>(postReducer, initialState);
+  const { generatedContent } = state;
+
     
     return (
       <PostContext.Provider value={{ state, dispatch, scheduledPosts }}>

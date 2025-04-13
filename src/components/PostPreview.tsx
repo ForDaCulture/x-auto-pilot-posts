@@ -1,8 +1,15 @@
 
-import { Card, CardContent } from "@/components/ui/card";
-import { Calendar, Clock, MapPin, MessageCircle, Repeat2, Heart } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { MessageCircle, Repeat2, Heart } from "lucide-react";
 import calculatePostScore from "@/utils/postScore";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { usePostContext } from "@/context/PostContext";
+import { Textarea } from "@/components/ui/textarea";
+import { Copy } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { useToast } from "@/hooks/use-toast";
 
 interface PostPreviewProps {
   text: string;
@@ -32,6 +39,14 @@ const SentimentBadge: React.FC<{ sentiment: string }> = ({ sentiment }) => {
 };
 
 export const PostPreview: React.FC<PostPreviewProps> = ({ text, imageUrl, sentiment }) => {
+  const { niche, originalText, ctaText, setOriginalText, setCtaText } = usePostContext();
+  const { toast } = useToast();
+  const [useCta, setUseCta] = useState(false);
+  const [hashtags, setHashtags] = useState<string[]>([]);
+  const [ctaEnabled, setCtaEnabled] = useState(false);
+  const [ctaText, setCtaText] = useState(text);
+  const [originalText, setOriginalText] = useState(text);
+
   return (
     <div className="mb-6">
       <Card className="p-4 border border-gray-200 bg-white rounded-xl overflow-hidden">
@@ -53,14 +68,10 @@ export const PostPreview: React.FC<PostPreviewProps> = ({ text, imageUrl, sentim
               </div>
             )}
             
-            <p className="mt-2 text-gray-800 whitespace-pre-line">{text}</p>
+            <p className="mt-2 text-gray-800 whitespace-pre-line">{useCta ? ctaText : originalText}</p>
             
             <div className="mt-2 text-sm text-blue-600">
-              #History #HistoricalFacts #DidYouKnow #TodayInHistory
-            </div>
-            
-            {imageUrl && (
-              <div className="mt-3 rounded-xl overflow-hidden border border-gray-200">
+              {imageUrl && (<div className="mt-3 rounded-xl overflow-hidden border border-gray-200">
                 <img 
                   src={imageUrl} 
                   alt="Historical visualization" 
@@ -68,7 +79,93 @@ export const PostPreview: React.FC<PostPreviewProps> = ({ text, imageUrl, sentim
                 />
               </div>
             )}
-            
+            </div>
+
+            <Button
+              onClick={async () => {
+                const response = await fetch('/api/generate-hashtags', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({ niche }),
+                });
+
+                if (response.ok) {
+                  const data = await response.json();
+                  setHashtags(data.hashtags);
+                } else {
+                  console.error('Failed to generate hashtags');
+                }
+              }}
+              className="mt-4"
+            >
+              Generate Hashtags
+            </Button>
+
+            {hashtags.length > 0 && (
+              <div className="mt-4">
+                <Textarea
+                  value={hashtags.join(' ')}
+                  onChange={(e) => setHashtags(e.target.value.split(' '))}
+                  className="w-full rounded-md border border-gray-200 p-2 text-sm"
+                />
+                <Button
+                  onClick={() => navigator.clipboard.writeText(hashtags.join(' '))}
+                  className="mt-2"
+                >
+                  <Copy className="mr-2 h-4 w-4" />
+                  Copy Hashtags
+                </Button>
+              </div>
+            )}
+
+            <div className="mt-4 flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="cta-toggle"
+                  checked={ctaEnabled}
+                  onCheckedChange={async (checked) => {
+                    setCtaEnabled(checked);
+                    if (checked) {
+                      const response = await fetch('/api/generate-cta', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ text: originalText }),
+                      });
+
+                      if (response.ok) {
+                        const data = await response.json();
+                        setCtaText(data.text);
+                        toast({ title: "CTA Added", description: "Call-to-action added successfully!" });
+                      } else {
+                        toast({ title: "Error", description: "Failed to add call-to-action.", variant: "destructive" });
+                        setCtaEnabled(false); 
+                      }
+                    } else {
+                      setCtaText(originalText);
+                    }
+                  }}
+                />
+                <label htmlFor="cta-toggle" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Add Call-to-Action</label>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="use-cta-toggle"
+                  checked={useCta}
+                  onCheckedChange={(checked) => {
+                    setUseCta(checked);
+                  }}
+                  disabled={!ctaEnabled}
+                />
+                <label htmlFor="use-cta-toggle" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Use CTA in Post</label>
+              </div>
+            </div>
+
+
             <div className="mt-3 flex items-center text-gray-500">
               <TooltipProvider>
                 <Tooltip>
@@ -83,7 +180,7 @@ export const PostPreview: React.FC<PostPreviewProps> = ({ text, imageUrl, sentim
                     </p>
                   </TooltipContent>
                 </Tooltip>
-              </TooltipProvider>
+              </TooltipProvider>                
             </div>
 
             <div className="mt-2 flex justify-between text-gray-500">

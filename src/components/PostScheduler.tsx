@@ -1,5 +1,5 @@
 
-import { useState, useContext } from "react";
+import { useState, useContext, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -7,9 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CalendarIcon, Clock } from "lucide-react";
 import { format, toDate } from "date-fns";
-import { cn } from "@/lib/utils";
+import { cn, toast } from "@/lib/utils";
+import { usePostContext } from "@/context/PostContext";
 
-interface PostSchedulerProps {
+interface PostSchedulerProps{
   onSchedule: (time: string) => Promise<boolean>;
   disabled: boolean;
   content: {
@@ -20,14 +21,22 @@ interface PostSchedulerProps {
 
 export const PostScheduler: React.FC<PostSchedulerProps> = ({ disabled, content }) => {
   const { dispatch } = useContext(PostContext);
-  const [date, setDate] = useState<Date | undefined>(new Date());
-  const [hour, setHour] = useState("12");
-  const [minute, setMinute] = useState("00");
-  const [meridiem, setMeridiem] = useState("PM");
+  const { niche } = usePostContext();
+  const [date, setDate] = useState<Date | undefined>(undefined);
+  const [cron, setCron] = useState<string>("0 12 * * *");
+  const [suggestedTime, setSuggestedTime] = useState<string | null>(null);
   const [isScheduling, setIsScheduling] = useState(false);
-  
+
+  useEffect(() => {
+    const today = new Date();
+    today.setHours(12, 0, 0, 0); // Default to 12 PM
+    setDate(today);
+  }, []);
+
   const handleSchedule = async () => {
-    if (!date) return;
+    if (!date) {
+      return;
+    }
     
     const postDate = toDate(date);
     postDate.setHours(parseInt(hour));
@@ -53,7 +62,41 @@ export const PostScheduler: React.FC<PostSchedulerProps> = ({ disabled, content 
     }
   };
 
-  setIsScheduling(false);
+  const [hour, minute, meridiem] = (() => {
+    const [_, h, m] = cron.split(" ");
+    const hour = parseInt(h);
+    const meridiem = hour >= 12 ? "PM" : "AM";
+    const displayHour = hour % 12 === 0 ? 12 : hour % 12;
+    return [String(displayHour).padStart(2, "0"), m, meridiem];
+  })();
+
+  const handleSuggestTime = async () => {
+    if (!niche) {
+      toast({
+        title: "Error",
+        description: "Please select a niche first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const response = await fetch("/api/suggest-time", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ niche }),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      setCron(data.cron);
+      setSuggestedTime(data.timeString);
+      toast({ title: "Suggested Time", description: `Best time to post: ${data.timeString} ` });
+    } else {
+      toast({ title: "Error", description: "Failed to get suggested time.", variant: "destructive" });
+    }
+  };
   
   const hours = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
   const minutes = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
@@ -94,7 +137,7 @@ export const PostScheduler: React.FC<PostSchedulerProps> = ({ disabled, content 
         <div>
           <Label className="block mb-2">Time</Label>
           <div className="flex space-x-2">
-            <Select value={hour} onValueChange={setHour}>
+            <Select value={hour} >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Hour" />
               </SelectTrigger>
@@ -107,7 +150,7 @@ export const PostScheduler: React.FC<PostSchedulerProps> = ({ disabled, content 
             
             <span className="flex items-center">:</span>
             
-            <Select value={minute} onValueChange={setMinute}>
+            <Select value={minute} >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Minute" />
               </SelectTrigger>
@@ -118,7 +161,7 @@ export const PostScheduler: React.FC<PostSchedulerProps> = ({ disabled, content 
               </SelectContent>
             </Select>
             
-            <Select value={meridiem} onValueChange={setMeridiem}>
+            <Select value={meridiem} >
               <SelectTrigger className="w-24">
                 <SelectValue placeholder="AM/PM" />
               </SelectTrigger>
@@ -128,6 +171,12 @@ export const PostScheduler: React.FC<PostSchedulerProps> = ({ disabled, content 
               </SelectContent>
             </Select>
           </div>
+          {suggestedTime && <p className="mt-2 text-sm text-muted-foreground">Suggested time: {suggestedTime}</p>}
+        </div>
+      </div>
+      <div className="flex justify-end mt-4">
+        <Button type="button" variant="outline" onClick={handleSuggestTime} disabled={disabled}>
+          Suggest Best Time
         </div>
       </div>
       

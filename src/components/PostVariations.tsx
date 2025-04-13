@@ -1,18 +1,26 @@
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dispatch, SetStateAction } from "react";
+import { Post } from "@/types/types";
+import { useToast } from "@/hooks/use-toast";
+import { Dispatch, SetStateAction, useContext } from "react";
+import { PostContext } from "@/context/PostContext";
 
 interface PostVariationsProps {
-  postId: string;
-  variations: string[];
-  setRecycledPosts: Dispatch<SetStateAction<{ [postId: string]: boolean | string[] }>>;
+  post: Post;
+  variations: string[]; // Only the text variations
+  setRecycledPosts: Dispatch<
+    SetStateAction<{ [postId: string]: boolean | string[] }>
+  >;
 }
 
 export const PostVariations: React.FC<PostVariationsProps> = ({
-  postId,
+  post,
   variations,
-  onSchedule,
+  setRecycledPosts,
 }) => {
+  const { niche } = useContext(PostContext);
+  const { toast } = useToast();
+
   const handleSchedule = async (variation: string) => {
     try {
       const response = await fetch("/api/schedule-post", {
@@ -20,31 +28,38 @@ export const PostVariations: React.FC<PostVariationsProps> = ({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          text: variation,
-          time: "now", // You might want to allow scheduling for a specific time here
-        }),
+        body: JSON.stringify({ text: variation, imageUrl: post.imageUrl, niche, postId: post.id }),
       });
 
       if (response.ok) {
-        // Remove the scheduled variation from the state
-        setRecycledPosts((prev) => {
-          const updatedVariations = (prev[postId] as string[]).filter(
-            (v) => v !== variation
-          );
-          return { ...prev, [postId]: updatedVariations };
-        });
+        // Remove the variation UI for this post (optional)
+        // setRecycledPosts((prev) => {
+        //   const updatedVariations = (prev[post.id] as string[]).filter(
+        //     (v) => v !== variation
+        //   );
+        //   return { ...prev, [post.id]: updatedVariations };
+        // });
 
-        // Show success toast
-        //  toast({
-        //    title: "Post Scheduled",
-        //    description: "Your recycled post has been scheduled successfully.",
-        //  });
+        // Show success toast.
+        toast({
+          title: "Variation Scheduled",
+          description: "Variation scheduled successfully.",
+        });
       } else {
-        console.error("Failed to schedule recycled post:", response.status);
+        toast({
+          title: "Error",
+          description: "Failed to schedule variation.",
+          variant: "destructive",
+        });
+        console.error("Failed to schedule variation:", response.status);
       }
     } catch (error) {
-      console.error("Error scheduling recycled post:", error);
+      toast({
+        title: "Error",
+        description: "Error scheduling variation.",
+        variant: "destructive",
+      });
+      console.error("Error scheduling variation:", error);
     }
   };
   return (
